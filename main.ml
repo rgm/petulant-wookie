@@ -50,14 +50,22 @@ in
 
 let alreadyImported = ref ([] : string list)
 
+let prbindingty ctx b = match b with
+    NameBind -> ()
+  | VarBind(tyT) -> pr ": "; printty tyT 
+
 let rec process_command ctx cmd = match cmd with
   | Eval(fi,t) -> 
+      let tyT = typeof ctx t in
       let t' = eval ctx t in
       printtm_ATerm true ctx t'; 
+      print_break 1 2;
+      pr ": ";
+      printty tyT;
       force_newline();
       ctx
   | Bind(fi,x,bind) -> 
-      pr x; pr " "; prbinding ctx bind; force_newline();
+      pr x; pr " "; prbindingty ctx bind; force_newline();
       addbinding ctx x bind
   
 let process_file f ctx =
