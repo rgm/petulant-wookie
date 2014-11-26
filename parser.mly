@@ -23,6 +23,12 @@ open Syntax
 
 /* Keyword tokens */
 %token <Support.Error.info> LAMBDA
+%token <Support.Error.info> IF
+%token <Support.Error.info> THEN
+%token <Support.Error.info> ELSE
+%token <Support.Error.info> TRUE
+%token <Support.Error.info> FALSE
+%token <Support.Error.info> BOOL
 
 /* Identifier and constant value tokens */
 %token <string Support.Error.withinfo> UCID  /* uppercase-initial */
@@ -113,20 +119,42 @@ Command :
 
 /* Right-hand sides of top-level bindings */
 Binder :
-    SLASH
-      { fun ctx -> NameBind }
+    COLON Type
+      { fun ctx -> VarBind ($2 ctx)}
+
+/* All type expressions */
+Type :
+    ArrowType
+                { $1 }
+
+/* Atomic types are those that never need extra parentheses */
+AType :
+    LPAREN Type RPAREN  
+           { $2 } 
+  | BOOL
+      { fun ctx -> TyBool }
+
+/* An "arrow type" is a sequence of atomic types separated by
+   arrows. */
+ArrowType :
+    AType ARROW ArrowType
+     { fun ctx -> TyArr($1 ctx, $3 ctx) }
+  | AType
+            { $1 }
 
 Term :
     AppTerm
       { $1 }
-  | LAMBDA LCID DOT Term 
+  | LAMBDA LCID COLON Type DOT Term 
       { fun ctx ->
           let ctx1 = addname ctx $2.v in
-          TmAbs($1, $2.v, $4 ctx1) }
-  | LAMBDA USCORE DOT Term 
+          TmAbs($1, $2.v, $4 ctx, $6 ctx1) }
+  | LAMBDA USCORE COLON Type DOT Term 
       { fun ctx ->
           let ctx1 = addname ctx "_" in
-          TmAbs($1, "_", $4 ctx1) }
+          TmAbs($1, "_", $4 ctx, $6 ctx1) }
+  | IF Term THEN Term ELSE Term
+      { fun ctx -> TmIf($1, $2 ctx, $4 ctx, $6 ctx) }
 
 AppTerm :
     ATerm
@@ -144,6 +172,10 @@ ATerm :
   | LCID 
       { fun ctx ->
           TmVar($1.i, name2index $1.i ctx $1.v, ctxlength ctx) }
+  | TRUE
+      { fun ctx -> TmTrue($1) }
+  | FALSE
+      { fun ctx -> TmFalse($1) }
 
 
 /*   */
